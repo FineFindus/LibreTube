@@ -33,6 +33,7 @@ android {
     buildTypes {
         getByName("release") {
             isMinifyEnabled = true
+            applicationIdSuffix = ".custom"
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
