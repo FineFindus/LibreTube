@@ -63,7 +63,7 @@ object PlayerHelper {
     const val CONTROL_TYPE = "control_type"
     const val SPONSOR_HIGHLIGHT_CATEGORY = "poi_highlight"
     private const val ROLE_FLAG_AUTO_GEN_SUBTITLE = C.ROLE_FLAG_SUPPLEMENTARY
-    private const val MINIMUM_BUFFER_DURATION = 1000 * 10 // exo default is 50s
+    const val MINIMUM_BUFFER_DURATION = 1000 * 10 // exo default is 50s
     const val WATCH_POSITION_TIMER_DELAY_MS = 1000L
 
     /**
