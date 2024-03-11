@@ -63,6 +63,7 @@ android {
     buildTypes {
         getByName("release") {
             isMinifyEnabled = true
+            applicationIdSuffix = ".custom"
             isShrinkResources = true
             signingConfig = signingConfigs.findByName("release")?.takeIf { it.storeFile != null }
             proguardFiles(
