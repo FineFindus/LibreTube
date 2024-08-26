@@ -2,6 +2,7 @@ package com.github.libretube.api
 
 import android.content.Context
 import com.github.libretube.R
+import android.util.Log
 import com.github.libretube.api.obj.ChapterSegment
 import com.github.libretube.api.obj.Message
 import com.github.libretube.api.obj.MetaInfo
@@ -10,16 +11,31 @@ import com.github.libretube.api.obj.PreviewFrames
 import com.github.libretube.api.obj.StreamItem
 import com.github.libretube.api.obj.Streams
 import com.github.libretube.api.obj.Subtitle
+import com.github.libretube.enums.ContentFilter
 import com.github.libretube.helpers.PlayerHelper
+import com.github.libretube.ui.dialogs.ShareDialog
 import com.github.libretube.util.NewPipeDownloaderImpl
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.toKotlinInstant
 import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.ServiceList
+import org.schabi.newpipe.extractor.channel.ChannelInfo
+import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo
+import org.schabi.newpipe.extractor.channel.tabs.ChannelTabs
+import org.schabi.newpipe.extractor.feed.FeedInfo
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.stream.VideoStream
 import retrofit2.HttpException
 import java.io.IOException
 import java.lang.Exception
+import java.time.OffsetDateTime
 
 fun VideoStream.toPipedStream(): PipedStream = PipedStream(
     url = content,
@@ -43,8 +59,90 @@ object StreamsExtractor {
 //        NewPipe.getService(ServiceList.YouTube.serviceId)
 //    }
 
+    private const val MAX_CONCURRENT_REQUESTS = 32
+    private val SERVICE = NewPipe.getService(ServiceList.YouTube.serviceId)
+
+    /**
+     * Defines the cutoff date for sub-feeds.
+     *
+     * Sub-feeds older than this date are considered expired and will not be shown.
+     * Currently set to 3 days before now.
+     */
+    private val SUB_FEED_CUTOFF_DATE = OffsetDateTime.now().minusDays(3)
+
     init {
         NewPipe.init(NewPipeDownloaderImpl())
+    }
+
+    suspend fun extractFeed(subscriptions: List<String>): List<StreamItem> {
+        val semaphore = Semaphore(MAX_CONCURRENT_REQUESTS)
+        val feed = coroutineScope {
+            subscriptions.map{ subscription ->
+                async {
+                    try {
+                        semaphore.withPermit {
+                            extractSubscription(subscription)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("StreamsExtractor", "extractFeed: Failed to extract subscription $subscription: ${e.message}")
+                        emptyList()
+                    }
+                }
+            }
+        }.awaitAll().flatten().sortedByDescending { it.uploaded }
+
+        return feed;
+    }
+
+    private suspend fun extractSubscription(subscription: String): List<StreamItem> {
+        return withContext(Dispatchers.IO) {
+            // we fetch the uploads using the FeedInfo first,
+            // it does not have all the info we need, but we can use it to check
+            // if there even are new videos to be fetched
+            val feedInfo = FeedInfo.getInfo(
+                "${ShareDialog.YOUTUBE_FRONTEND_URL}/channel/$subscription"
+            )
+            val hasRecentUploads = feedInfo.relatedItems.any { it.uploadDate?.offsetDateTime()?.isAfter(SUB_FEED_CUTOFF_DATE) == true }
+            if (!hasRecentUploads)
+                return@withContext emptyList()
+
+            val channelInfo = ChannelInfo.getInfo(
+                SERVICE,
+                "${ShareDialog.YOUTUBE_FRONTEND_URL}/channel/$subscription"
+            )
+
+            channelInfo.tabs.asSequence().filter {
+                ChannelTabs.VIDEOS in it.contentFilters && ContentFilter.VIDEOS.isEnabled ||
+                        // Shorts are not working in NewPipeExtractor right now
+                        // ChannelTabs.SHORTS in it.contentFilters && ContentFilter.SHORTS.isEnabled ||
+                 ChannelTabs.LIVESTREAMS in it.contentFilters && ContentFilter.LIVESTREAMS.isEnabled
+            }.flatMap {
+                ChannelTabInfo.getInfo(SERVICE, it).relatedItems
+            }.filterIsInstance<StreamInfoItem>().filter {
+                it.uploadDate?.offsetDateTime()?.isAfter(
+                    SUB_FEED_CUTOFF_DATE) == true
+            }.map {
+                StreamItem(
+                    url = it.url.replace(ShareDialog.YOUTUBE_FRONTEND_URL, ""),
+                    type = StreamItem.TYPE_STREAM,
+                    title = it.name,
+                    // for some reason the extracted thumbnails do not include the Full-HD thumbnail,
+                    // so we manually use the maxres thumbnail URL
+                    //thumbnail = it.thumbnails.maxByOrNull { img -> img.height }?.url,
+                    thumbnail = "https://img.youtube.com/vi/${it.url.replace("${ShareDialog.YOUTUBE_FRONTEND_URL}/watch?v=", "")}/maxresdefault.jpg",
+                    uploaderName = it.uploaderName,
+                    uploaderUrl = it.uploaderUrl.replace(ShareDialog.YOUTUBE_FRONTEND_URL, ""),
+                    uploaderAvatar = channelInfo.avatars.maxByOrNull { img -> img.height }?.url,
+                    uploadedDate = it.uploadDate?.offsetDateTime().toString(),
+                    duration = it.duration,
+                    views = it.viewCount,
+                    uploaderVerified = it.isUploaderVerified,
+                    uploaded = it.uploadDate?.offsetDateTime()?.toEpochSecond()?.times(1000) ?: 0L,
+                    shortDescription = it.shortDescription,
+                    isShort = it.isShortFormContent
+                )
+            }.toList()
+        }
     }
 
     suspend fun extractStreams(videoId: String): Streams {
