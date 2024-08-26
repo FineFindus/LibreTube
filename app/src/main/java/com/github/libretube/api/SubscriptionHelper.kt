@@ -10,6 +10,7 @@ import com.github.libretube.constants.PreferenceKeys
 import com.github.libretube.db.DatabaseHolder.Database
 import com.github.libretube.db.obj.LocalSubscription
 import com.github.libretube.extensions.TAG
+import com.github.libretube.helpers.PlayerHelper
 import com.github.libretube.helpers.PreferenceHelper
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.runBlocking
@@ -115,6 +116,9 @@ object SubscriptionHelper {
             RetrofitInstance.authApi.getFeed(token)
         } else {
             val subscriptions = Database.localSubscriptionDao().getAll().map { it.channelId }
+            if (PlayerHelper.localStreamExtraction) {
+                return StreamsExtractor.extractFeed(subscriptions)
+            }
             when {
                 subscriptions.size > GET_SUBSCRIPTIONS_LIMIT ->
                     RetrofitInstance.authApi
