@@ -12,8 +12,14 @@ import com.github.libretube.api.obj.Streams
 import com.github.libretube.api.obj.Subtitle
 import com.github.libretube.helpers.PlayerHelper
 import com.github.libretube.util.NewPipeDownloaderImpl
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.datetime.toKotlinInstant
 import org.schabi.newpipe.extractor.NewPipe
+import org.schabi.newpipe.extractor.feed.FeedInfo
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.stream.VideoStream
@@ -45,6 +51,46 @@ object StreamsExtractor {
 
     init {
         NewPipe.init(NewPipeDownloaderImpl())
+    }
+
+    suspend fun extractFeed(subscriptions: List<String>): List<StreamItem> {
+        // Limit to 5 concurrent requests
+        val maxConcurrentRequests = 6
+        val semaphore = Semaphore(maxConcurrentRequests)
+        return runBlocking {
+            subscriptions.map { subscription ->
+                async {
+                    semaphore.withPermit {
+                        extractSubscription(subscription)
+                    }
+                }
+            }.awaitAll().flatten()
+        }
+    }
+
+    private fun extractSubscription(subscription: String): List<StreamItem> {
+        val extractor =
+            NewPipe.getService(0)
+                .getFeedExtractor("https://www.youtube.com/channel/$subscription")
+        val info = FeedInfo.getInfo(extractor)
+        return info.relatedItems.map {
+            StreamItem(
+                url = it.url,
+                type = StreamItem.TYPE_STREAM,
+                title = it.name,
+                thumbnail = it.thumbnails.firstOrNull()?.url,
+                uploaderName = it.uploaderName,
+                uploaderUrl = it.uploaderUrl,
+                uploaderAvatar = it.uploaderAvatars.firstOrNull()?.url,
+                uploadedDate = it.uploadDate?.offsetDateTime().toString(),
+                duration = it.duration,
+                views = it.viewCount,
+                uploaderVerified = it.isUploaderVerified,
+                uploaded = it.uploadDate?.offsetDateTime()?.toEpochSecond() ?: 0L,
+                shortDescription = it.shortDescription,
+                isShort = it.isShortFormContent
+            )
+        }
     }
 
     suspend fun extractStreams(videoId: String): Streams {
