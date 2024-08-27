@@ -131,6 +131,7 @@ object PreferenceKeys {
     const val DISABLE_VIDEO_IMAGE_PROXY = "disable_video_image_proxy"
     const val LOCAL_RYD = "local_return_youtube_dislikes"
     const val LOCAL_STREAM_EXTRACTION = "local_stream_extraction"
+    const val LOCAL_FEED_EXTRACTION = "local_feed_extraction"
 
     // History
     const val WATCH_HISTORY_SIZE = "watch_history_size"
