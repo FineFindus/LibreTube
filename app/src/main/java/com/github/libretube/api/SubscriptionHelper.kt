@@ -116,7 +116,7 @@ object SubscriptionHelper {
             RetrofitInstance.authApi.getFeed(token)
         } else {
             val subscriptions = Database.localSubscriptionDao().getAll().map { it.channelId }
-            if (PlayerHelper.disablePipedProxy && PlayerHelper.localStreamExtraction) {
+            if (PlayerHelper.localFeedExtraction) {
                 StreamsExtractor.extractFeed(subscriptions)
             }
             when {
