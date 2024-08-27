@@ -2,6 +2,7 @@ package com.github.libretube.api
 
 import android.content.Context
 import com.github.libretube.R
+import android.util.Log
 import com.github.libretube.api.obj.ChapterSegment
 import com.github.libretube.api.obj.Message
 import com.github.libretube.api.obj.MetaInfo
@@ -54,14 +55,18 @@ object StreamsExtractor {
     }
 
     suspend fun extractFeed(subscriptions: List<String>): List<StreamItem> {
-        // Limit to 5 concurrent requests
-        val maxConcurrentRequests = 6
+        val maxConcurrentRequests = 12
         val semaphore = Semaphore(maxConcurrentRequests)
         return runBlocking {
             subscriptions.map { subscription ->
                 async {
-                    semaphore.withPermit {
-                        extractSubscription(subscription)
+                    try {
+                        semaphore.withPermit {
+                            extractSubscription(subscription)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("StreamsExtractor", "extractFeed: Failed to extract subscription $subscription: ${e.message}")
+                        emptyList()
                     }
                 }
             }.awaitAll().flatten()
