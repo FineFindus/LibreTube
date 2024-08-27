@@ -370,6 +370,12 @@ object PlayerHelper {
             true
         )
 
+    val localFeedExtraction: Boolean
+        get() = PreferenceHelper.getBoolean(
+            PreferenceKeys.LOCAL_FEED_EXTRACTION,
+            true
+        )
+
     val useHlsOverDash: Boolean
         get() = PreferenceHelper.getBoolean(
             PreferenceKeys.USE_HLS_OVER_DASH,
