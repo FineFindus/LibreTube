@@ -89,6 +89,14 @@
             android:dependency="local_stream_extraction"
             app:key="local_return_youtube_dislikes" />
 
+        <SwitchPreferenceCompat
+            android:defaultValue="true"
+            android:icon="@drawable/ic_rss"
+            android:summary="@string/local_feed_extraction_summary"
+            android:title="@string/local_feed_extraction"
+            android:dependency="disable_video_image_proxy"
+            app:key="local_feed_extraction" />
+
     </PreferenceCategory>
 
 </PreferenceScreen>
