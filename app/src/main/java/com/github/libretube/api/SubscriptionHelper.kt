@@ -117,7 +117,7 @@ object SubscriptionHelper {
         } else {
             val subscriptions = Database.localSubscriptionDao().getAll().map { it.channelId }
             if (PlayerHelper.localFeedExtraction) {
-                StreamsExtractor.extractFeed(subscriptions)
+                return StreamsExtractor.extractFeed(subscriptions)
             }
             when {
                 subscriptions.size > GET_SUBSCRIPTIONS_LIMIT ->

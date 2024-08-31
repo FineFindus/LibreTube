@@ -12,15 +12,18 @@ import com.github.libretube.api.obj.StreamItem
 import com.github.libretube.api.obj.Streams
 import com.github.libretube.api.obj.Subtitle
 import com.github.libretube.helpers.PlayerHelper
+import com.github.libretube.ui.dialogs.ShareDialog
 import com.github.libretube.util.NewPipeDownloaderImpl
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.datetime.toKotlinInstant
 import org.schabi.newpipe.extractor.NewPipe
-import org.schabi.newpipe.extractor.feed.FeedInfo
+import org.schabi.newpipe.extractor.ServiceList
+import org.schabi.newpipe.extractor.StreamingService
+import org.schabi.newpipe.extractor.channel.ChannelInfo
+import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo
+import org.schabi.newpipe.extractor.channel.tabs.ChannelTabs
 import org.schabi.newpipe.extractor.stream.StreamInfo
 import org.schabi.newpipe.extractor.stream.StreamInfoItem
 import org.schabi.newpipe.extractor.stream.VideoStream
@@ -55,45 +58,47 @@ object StreamsExtractor {
     }
 
     suspend fun extractFeed(subscriptions: List<String>): List<StreamItem> {
-        val maxConcurrentRequests = 12
+        val maxConcurrentRequests = 15
         val semaphore = Semaphore(maxConcurrentRequests)
+        val service = NewPipe.getService(ServiceList.YouTube.serviceId)
         return runBlocking {
             subscriptions.map { subscription ->
-                async {
                     try {
                         semaphore.withPermit {
-                            extractSubscription(subscription)
+                            extractSubscription(service, subscription)
                         }
                     } catch (e: Exception) {
                         Log.e("StreamsExtractor", "extractFeed: Failed to extract subscription $subscription: ${e.message}")
                         emptyList()
                     }
                 }
-            }.awaitAll().flatten()
-        }
+            }.flatten().sortedByDescending { it.uploaded }
     }
 
-    private fun extractSubscription(subscription: String): List<StreamItem> {
-        val extractor =
-            NewPipe.getService(0)
-                .getFeedExtractor("https://www.youtube.com/channel/$subscription")
-        val info = FeedInfo.getInfo(extractor)
-        return info.relatedItems.map {
+    private fun extractSubscription(service: StreamingService, subscription: String): List<StreamItem> {
+        val channelInfo = ChannelInfo.getInfo(
+            service,
+            "${ShareDialog.YOUTUBE_FRONTEND_URL}/channel/$subscription"
+        )
+        val videosTab = channelInfo.tabs.firstOrNull { it.contentFilters.contains(ChannelTabs.VIDEOS) } ?: return emptyList()
+        val tabInfo = ChannelTabInfo.getInfo(service, videosTab)
+        return tabInfo.relatedItems.filterIsInstance<StreamInfoItem>().take(20).map {
             StreamItem(
-                url = it.url,
+                url = it.url.replace(ShareDialog.YOUTUBE_FRONTEND_URL, ""),
                 type = StreamItem.TYPE_STREAM,
                 title = it.name,
-                thumbnail = it.thumbnails.firstOrNull()?.url,
+                thumbnail = it.thumbnails.lastOrNull()?.url,
                 uploaderName = it.uploaderName,
                 uploaderUrl = it.uploaderUrl,
-                uploaderAvatar = it.uploaderAvatars.firstOrNull()?.url,
+                uploaderAvatar = channelInfo.avatars.firstOrNull()?.url,
                 uploadedDate = it.uploadDate?.offsetDateTime().toString(),
                 duration = it.duration,
                 views = it.viewCount,
                 uploaderVerified = it.isUploaderVerified,
-                uploaded = it.uploadDate?.offsetDateTime()?.toEpochSecond() ?: 0L,
+                uploaded = it.uploadDate?.offsetDateTime()?.toEpochSecond()?.times(1000) ?: 0L,
                 shortDescription = it.shortDescription,
                 isShort = it.isShortFormContent
+
             )
         }
     }
