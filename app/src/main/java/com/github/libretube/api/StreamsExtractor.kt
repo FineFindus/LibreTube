@@ -90,7 +90,7 @@ object StreamsExtractor {
                 thumbnail = it.thumbnails.lastOrNull()?.url,
                 uploaderName = it.uploaderName,
                 uploaderUrl = it.uploaderUrl,
-                uploaderAvatar = channelInfo.avatars.firstOrNull()?.url,
+                uploaderAvatar = channelInfo.avatars.lastOrNull()?.url,
                 uploadedDate = it.uploadDate?.offsetDateTime().toString(),
                 duration = it.duration,
                 views = it.viewCount,
