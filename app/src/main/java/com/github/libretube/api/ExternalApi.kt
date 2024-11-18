@@ -13,7 +13,7 @@ import retrofit2.http.Url
 
 private const val GITHUB_API_URL = "https://api.github.com/repos/libre-tube/LibreTube/releases/latest"
 private const val SB_API_URL = "https://sponsor.ajay.app"
-private const val RYD_API_URL = "https://returnyoutubedislikeapi.com"
+private const val RYD_API_URL = "https://ryd-proxy.kavin.rocks"
 
 interface ExternalApi {
     // only for fetching servers list
