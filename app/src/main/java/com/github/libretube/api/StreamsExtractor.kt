@@ -36,6 +36,7 @@ import retrofit2.HttpException
 import java.io.IOException
 import java.lang.Exception
 import java.time.OffsetDateTime
+import java.util.concurrent.atomic.AtomicInteger
 
 fun VideoStream.toPipedStream(): PipedStream = PipedStream(
     url = content,
@@ -59,31 +60,47 @@ object StreamsExtractor {
 //        NewPipe.getService(ServiceList.YouTube.serviceId)
 //    }
 
-    private const val MAX_CONCURRENT_REQUESTS = 32
+    private const val MAX_CONCURRENT_REQUESTS = 24
+
+    /**
+     * Maximum amount of feeds that should be fetched together, before a delay should be applied.
+     */
+    private const val BATCH_SIZE = 75
+
+    /**
+     * Millisecond delay between two consecutive batches to avoid throttling.
+     */
+    private val BATCH_DELAY = (250L..1000L)
     private val SERVICE = NewPipe.getService(ServiceList.YouTube.serviceId)
 
     /**
      * Defines the cutoff date for sub-feeds.
      *
      * Sub-feeds older than this date are considered expired and will not be shown.
-     * Currently set to 3 days before now.
+     * The RSS-feed shows the last 12 videos, so this should be set to 12 days at most.
      */
-    private val SUB_FEED_CUTOFF_DATE = OffsetDateTime.now().minusDays(3)
+    private val SUB_FEED_CUTOFF_DATE = OffsetDateTime.now().minusDays(7)
 
     init {
         NewPipe.init(NewPipeDownloaderImpl())
     }
 
     suspend fun extractFeed(subscriptions: List<String>): List<StreamItem> {
+        val extractionCount = AtomicInteger()
         val semaphore = Semaphore(MAX_CONCURRENT_REQUESTS)
         val feed = coroutineScope {
             subscriptions.map{ subscription ->
                 async {
                     try {
+                        // throttle feed extraction to avoid rate limiting
+                        val count = extractionCount.getAndIncrement();
+                        if (count != 0 && count % BATCH_SIZE == 0) {
+                            Thread.sleep(BATCH_DELAY.random())
+                        }
                         semaphore.withPermit {
                             extractSubscription(subscription)
                         }
-                    } catch (e: Exception) {
+                   } catch (e: Exception) {
                         Log.e("StreamsExtractor", "extractFeed: Failed to extract subscription $subscription: ${e.message}")
                         emptyList()
                     }
