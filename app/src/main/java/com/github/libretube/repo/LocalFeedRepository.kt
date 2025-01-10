@@ -153,11 +153,15 @@ class LocalFeedRepository : FeedRepository {
         val channelAvatar = channelInfo.avatars.maxByOrNull { it.height }?.url
         return related.map { item ->
             // avatar is not always included in these info items, thus must be taken from channel info response
-            item.toStreamItem(
+            val stream = item.toStreamItem(
                 channelAvatar,
                 // shorts fetched via the shorts tab don't have upload dates so we fall back to the feedInfo
                 feedInfoItems[item.url]
             )
+            // extracted thumbnails do not include the Full-HD thumbnail (as that is only shown on the video page),
+            // so we manually use the maxres thumbnail URL
+            stream.thumbnail = "https://img.youtube.com/vi/${item.url.replace("${YOUTUBE_FRONTEND_URL}/watch?v=", "")}/maxresdefault.jpg"
+            stream
         }.filter { it.uploaded > minimumDateMillis }
     }
 

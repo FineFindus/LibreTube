@@ -107,12 +107,19 @@ object ImageHelper {
             if (urlToLoad.startsWith(HTTP_SCHEME) && !isCached(urlToLoad)) return
         }
 
-        getImageWithCallback(target.context, urlToLoad) { result ->
+        getImageWithCallback(target.context, urlToLoad, { result ->
             // set the background to white for transparent images
             if (whiteBackground) target.setBackgroundColor(Color.WHITE)
 
             target.setImageDrawable(result)
-        }
+        },
+            {
+                // some videos do not provide a `maxresdefault` thumbnail, fall back to the medium quality
+                // we cannot use `hqdefault` here as it has a different aspect ratio, and thus black bars
+                if (urlToLoad.endsWith("maxresdefault.jpg"))
+                    loadImage(urlToLoad.replace("maxres", "mq"), target, whiteBackground)
+            }
+        )
     }
 
     suspend fun downloadImage(context: Context, url: String, path: Path) {
@@ -136,12 +143,15 @@ object ImageHelper {
         return imageLoader.execute(request).image?.toBitmap()
     }
 
-    private fun getImageWithCallback(context: Context, url: String?, onSuccess: (Drawable) -> Unit) {
+    private fun getImageWithCallback(context: Context, url: String?, onSuccess: (Drawable) -> Unit, onError: () -> Unit) {
         val request = ImageRequest.Builder(context)
             .data(url)
-            .target { drawable ->
-                onSuccess(drawable.asDrawable(context.resources))
-            }
+            .target(
+                onSuccess = { drawable ->
+                    onSuccess(drawable.asDrawable(context.resources))
+                },
+                onError = { onError() }
+            )
             .build()
 
         imageLoader.enqueue(request)
