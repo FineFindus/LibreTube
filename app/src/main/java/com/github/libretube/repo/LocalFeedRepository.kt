@@ -163,7 +163,7 @@ class LocalFeedRepository : FeedRepository {
     }
 
     companion object {
-        private const val CHUNK_SIZE = 2
+        private const val CHUNK_SIZE = 25
 
         /**
          * Maximum amount of feeds that should be fetched together, before a delay should be applied.
