@@ -145,7 +145,7 @@ class LocalFeedRepository : FeedRepository {
             runCatching {
                 ChannelTabInfo.getInfo(NewPipeExtractorInstance.extractor, tab).relatedItems
             }.getOrElse { emptyList() }
-        }.flatten().filterIsInstance<StreamInfoItem>()
+        }.flatten().filterIsInstance<StreamInfoItem>().filter { !it.requiresMembership() }
 
         val channelAvatar = channelInfo.avatars.maxByOrNull { it.height }?.url
         return related.map { item ->
