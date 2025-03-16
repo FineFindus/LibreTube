@@ -90,22 +90,27 @@ class LocalFeedRepository : FeedRepository {
             // add a delay after each BATCH_SIZE amount of visited channels
             val count = chunkedExtractionCount.get();
             if (count >= BATCH_SIZE) {
-                delay(BATCH_DELAY.random())
+                // throttle to avoid rate-limiting after fetching the full channel info
+                delay(CHANNEL_BATCH_DELAY.random())
                 chunkedExtractionCount.set(0)
+            } else {
+                // always add a small delay after fetching `CHUNK_SIZE` to be a good citizen of the
+                // web and not overwhelm the server
+                delay(RSS_BATCH_DELAY.random())
             }
 
             val collectedFeedItems = channelIdChunk.parallelMap { channelId ->
                 try {
-                    getRelatedStreams(channelId, minimumDateMillis)
+                    getRelatedStreams(channelId, minimumDateMillis).also {
+                        if (it.isNotEmpty())
+                            chunkedExtractionCount.incrementAndGet()
+                    }
                 } catch (e: Exception) {
                     Log.e(channelId, e.stackTraceToString())
                     null
                 } finally {
-                    chunkedExtractionCount.incrementAndGet()
-                    val currentProgress = totalExtractionCount.incrementAndGet()
-
                     withContext(Dispatchers.Main) {
-                        onProgressUpdate(FeedProgress(currentProgress, channelIds.size))
+                        onProgressUpdate(FeedProgress(totalExtractionCount.incrementAndGet(), channelIds.size))
                     }
                 }
             }.filterNotNull().flatten().map(StreamItem::toFeedItem)
@@ -163,7 +168,12 @@ class LocalFeedRepository : FeedRepository {
     }
 
     companion object {
-        private const val CHUNK_SIZE = 2
+        /**
+         * Amount of feeds that are fetched concurrently.
+         *
+         * Should ideally be a factor of `BATCH_SIZE` to be correctly applied.
+         */
+        private const val CHUNK_SIZE = 25
 
         /**
          * Maximum amount of feeds that should be fetched together, before a delay should be applied.
@@ -171,9 +181,17 @@ class LocalFeedRepository : FeedRepository {
         private const val BATCH_SIZE = 50
 
         /**
+         * Millisecond delay after fetching `BATCH_SIZE` channels to avoid throttling.
+         *
+         * A channel is only counted as fetched when it had a recent upload, requiring to fetch
+         * the channelInfo via Innertube.
+         */
+        private val CHANNEL_BATCH_DELAY = (500L..1500L)
+
+        /**
          * Millisecond delay between two consecutive batches to avoid throttling.
          */
-        private val BATCH_DELAY = (500L..1500L)
+        private val RSS_BATCH_DELAY = (0L..200L)
         private const val MAX_FEED_AGE_DAYS = 30L // 30 days
     }
 }
