@@ -1,6 +1,8 @@
 package com.github.libretube.ui.activities
 
 import android.os.Bundle
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import com.github.libretube.databinding.ActivityHelpBinding
 import com.github.libretube.helpers.IntentHelper
 import com.github.libretube.ui.base.BaseActivity
@@ -15,6 +17,12 @@ class HelpActivity : BaseActivity() {
 
         binding.toolbar.setNavigationOnClickListener {
             onBackPressedDispatcher.onBackPressed()
+        }
+        // manually apply additional padding for edge-to-edge compatibility
+        ViewCompat.setOnApplyWindowInsetsListener(binding.toolbar) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(0, systemBars.top, 0, 0)
+            insets
         }
 
         setupCard(binding.faq, FAQ_URL)
