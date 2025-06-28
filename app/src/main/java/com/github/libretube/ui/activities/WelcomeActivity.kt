@@ -6,6 +6,8 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import com.github.libretube.databinding.ActivityWelcomeBinding
@@ -29,6 +31,12 @@ class WelcomeActivity : BaseActivity() {
 
         val binding = ActivityWelcomeBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        // manually apply additional padding for edge-to-edge compatibility
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { v, insets ->
+            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
+            v.setPadding(0, systemBars.top, 0, systemBars.bottom)
+            insets
+        }
 
         val adapter = InstancesAdapter(
             viewModel.uiState.value?.selectedInstanceIndex,
