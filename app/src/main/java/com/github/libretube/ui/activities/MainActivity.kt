@@ -60,6 +60,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import kotlin.math.max
 
 class MainActivity : BaseActivity() {
     lateinit var binding: ActivityMainBinding
@@ -125,7 +126,7 @@ class MainActivity : BaseActivity() {
             with(binding.appBarLayout) {
                 setPadding(
                     paddingLeft,
-                    systemBarInsets.top,
+                    max(paddingTop, systemBarInsets.top),
                     paddingRight,
                     paddingBottom
                 )
@@ -135,7 +136,7 @@ class MainActivity : BaseActivity() {
                     paddingLeft,
                     paddingTop,
                     paddingRight,
-                    systemBarInsets.bottom
+                    max(paddingBottom, systemBarInsets.bottom)
                 )
             }
         }
