@@ -805,7 +805,7 @@ class PlayerFragment : Fragment(R.layout.fragment_player), OnlinePlayerOptions {
         val insets =
             WindowInsetsCompat.toWindowInsetsCompat(mainActivity.window.decorView.rootWindowInsets)
         val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-        val maxHeight = binding.root.height - (binding.player.height + systemBars.top + systemBars.bottom)
+        val maxHeight = binding.root.height - (binding.player.height + systemBars.top)
         commonPlayerViewModel.maxSheetHeightPx = maxHeight
         chaptersViewModel.maxSheetHeightPx = maxHeight
     }
