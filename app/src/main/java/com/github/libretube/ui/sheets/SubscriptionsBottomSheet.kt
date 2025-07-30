@@ -7,6 +7,7 @@ import androidx.fragment.app.activityViewModels
 import com.github.libretube.R
 import com.github.libretube.databinding.SheetSubscriptionsBinding
 import com.github.libretube.ui.adapters.SubscriptionChannelAdapter
+import com.github.libretube.ui.extensions.onSystemInsets
 import com.github.libretube.ui.models.SubscriptionsViewModel
 
 class SubscriptionsBottomSheet : ExpandedBottomSheet(R.layout.sheet_subscriptions) {
@@ -21,6 +22,16 @@ class SubscriptionsBottomSheet : ExpandedBottomSheet(R.layout.sheet_subscription
         super.onViewCreated(view, savedInstanceState)
 
         binding.channelsRecycler.adapter = adapter
+
+        // add bottom padding to the list, to ensure that the last item is not overlapped by the system bars
+        binding.channelsRecycler.onSystemInsets { v, systemInsets ->
+            v.setPadding(
+                v.paddingLeft,
+                v.paddingTop,
+                v.paddingRight,
+                systemInsets.bottom
+            )
+        }
 
         binding.subscriptionsSearchInput.addTextChangedListener { query ->
             showFilteredSubscriptions(adapter, query.toString())
