@@ -14,6 +14,7 @@ import com.github.libretube.databinding.SheetSubscriptionsBinding
 import com.github.libretube.extensions.toID
 import com.github.libretube.helpers.PreferenceHelper
 import com.github.libretube.ui.adapters.SubscriptionChannelAdapter
+import com.github.libretube.ui.extensions.onSystemInsets
 import com.github.libretube.ui.models.EditChannelGroupsModel
 import com.github.libretube.ui.models.SubscriptionsViewModel
 import java.util.Locale
@@ -37,6 +38,16 @@ class SubscriptionsBottomSheet : ExpandedBottomSheet(R.layout.sheet_subscription
         super.onViewCreated(view, savedInstanceState)
 
         binding.channelsRecycler.adapter = adapter
+
+        // add bottom padding to the list, to ensure that the last item is not overlapped by the system bars
+        binding.channelsRecycler.onSystemInsets { v, systemInsets ->
+            v.setPadding(
+                v.paddingLeft,
+                v.paddingTop,
+                v.paddingRight,
+                systemInsets.bottom
+            )
+        }
 
         initHeaderLayout()
 
