@@ -304,7 +304,8 @@ class DefaultSabrChunkSource(
             representationHolder.getSegmentEndTimeUs(segmentNum),
             seekTimeUs,
             representationHolder.periodDurationUs,
-            segmentNum,
+            // the chunk index doesn't count the index segment
+            segmentNum + 1,
             1,
             0,
             representationHolder.chunkExtractor!!
