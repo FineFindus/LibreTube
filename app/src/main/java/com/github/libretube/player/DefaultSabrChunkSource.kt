@@ -288,7 +288,8 @@ class DefaultSabrChunkSource(
                 representationHolder.representation.formatId(),
                 Util.usToMs(playbackPositionUs),
                 loadingInfo.playbackSpeed,
-                segmentNum,
+                // the chunk index doesn't count the index segment as segment 0
+                segmentNum + 1,
                 Util.usToMs(startTimeUs),
                 bufferedSegments,
             ))
@@ -304,8 +305,7 @@ class DefaultSabrChunkSource(
             representationHolder.getSegmentEndTimeUs(segmentNum),
             seekTimeUs,
             representationHolder.periodDurationUs,
-            // the chunk index doesn't count the index segment
-            segmentNum + 1,
+            segmentNum,
             1,
             0,
             representationHolder.chunkExtractor!!
